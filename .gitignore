@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.venv/
+node_modules/
+data/
+output/
+.playwright-cli/
+config/*.local.json
+.DS_Store
+*.log

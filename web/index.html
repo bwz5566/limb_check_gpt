@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>肢体检测 · 验证工作台</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header>
+<div>
+<span class="eyebrow">LIMB CHECK / LOCAL WORKBENCH</span>
+<h1>肢体检测 · 验证工作台</h1>
+</div>
+<div class="runtime">
+<span id="server-status">连接服务中</span>
+<span id="model-status">模型未加载</span>
+</div>
+</header>
+<nav aria-label="工作区">
+<button data-tab="capture" class="active">01 实时检测</button>
+<button data-tab="lab">02 样本回放</button>
+<button data-tab="history">03 报告与标注</button>
+<button data-tab="evaluation">04 效果评测</button>
+<button data-tab="help">使用说明</button>
+</nav>
+<div id="notice" role="status" aria-live="polite">本地处理，按需保存。程序可用性与模型真实效果分别验证。</div>
+<main>
+<section id="capture" class="tab">
+  <div class="intro">
+<div>
+<span class="eyebrow">LIVE / GUIDED CAPTURE</span>
+<h2>让每一次判断，都有依据可查。</h2>
+<p>跟随动作提示采集证据。结果是可见关键点与规则的观察，不作为医学或招聘决定。</p>
+</div>
+<span class="badge">模型已随项目提供</span>
+</div>
+  <div class="workspace">
+<div class="stage">
+<canvas id="live-canvas" width="960" height="540" aria-label="摄像头检测画面">
+</canvas>
+<div class="stage-text">
+<strong id="step-title">准备开始</strong>
+<span id="step-hint">点击加载模型，再开启摄像头</span>
+</div>
+<progress id="hold" max="1" value="0">
+</progress>
+<div id="live-metrics" class="mono">CPU 可运行 · 不需要 CUDA</div>
+</div>
+  <aside class="card">
+<h3>采集设置</h3>
+<label>推理后端<select id="delegate">
+<option value="AUTO">自动：GPU 优先，失败回退 CPU</option>
+<option value="CPU">强制 CPU（兼容优先）</option>
+<option value="GPU">强制 GPU</option>
+</select>
+</label>
+<button id="load-model">加载 / 重新加载模型</button>
+<label>动作方案<select id="profile">
+<option value="upper">上肢与手部</option>
+<option value="full">全身与手部</option>
+<option value="hands">手部专项</option>
+</select>
+</label>
+<label class="check">
+<input id="voice" type="checkbox">语音提示（使用浏览器语音）</label>
+<label class="check consent">
+<input id="camera-consent" type="checkbox">我已获得采集授权。视频仅在浏览器处理，点击保存才将报告与证据写入本机。</label>
+<button id="camera-start" disabled>开始引导检测</button>
+<div class="button-row">
+<button id="camera-skip" class="secondary" disabled>跳过本步</button>
+<button id="camera-stop" class="secondary" disabled>结束采集</button>
+</div>
+<ol id="step-list">
+</ol>
+<p class="small">动作不适可跳过。随机手势仅是交互校验，不是可靠的防伪或身份认证。</p>
+</aside>
+</div>
+</section>
+<section id="lab" class="tab" hidden>
+  <div class="intro">
+<div>
+<span class="eyebrow">REPLAY / REPRODUCIBLE INPUT</span>
+<h2>用同一批样本，比较每次改动。</h2>
+<p>支持多张图片或多个视频，顺序执行。原始文件不上传，视频按时间抽帧。</p>
+</div>
+</div>
+  <div class="workspace">
+<div class="card">
+<label class="drop">选择图片 / 视频（可多选）<input id="sample-files" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" multiple>
+</label>
+<label class="check">
+<input id="nail-view" type="checkbox">样本为双手手背、五指张开（启用美甲色差规则）</label>
+<label class="check">
+<input id="sample-synthetic" type="checkbox">模拟 / 合成样本（排除效果统计）</label>
+<label class="check">
+<input id="sample-consent" type="checkbox">我有权使用这些样本进行检测验证</label>
+<div class="button-row">
+<button id="analyze-files" disabled>分析所选样本</button>
+<button id="sample-cancel" class="secondary" disabled>停止后续分析</button>
+</div>
+<p id="batch-progress" role="status">
+</p>
+<canvas id="sample-canvas" width="960" height="540" aria-label="样本分析画面">
+</canvas>
+</div>
+<aside class="card">
+<h3>验证边界</h3>
+<p>静态图片只能验证结构规则，不能验证握拳、抬臂等动作完成度。</p>
+<p>视频最多取 <span id="max-frames">60</span> 帧，结果覆盖实际抽到的帧。短暂动作或短暂疑点可能被漏过。</p>
+<p>阴影、透视与遮挡会影响判断。没有检出目标时会标为“无法判断”，不会记为正常。</p>
+<button id="synthetic-check" class="secondary">运行空白画面自检</button>
+<p class="small">生成无人体的灰色图，仅验证管线与空输入处理，不是准确率测试，自动排除于效果统计。</p>
+</aside>
+</div>
+<div id="batch-results" class="card" hidden>
+</div>
+</section>
+<section id="history" class="tab" hidden>
+<div class="intro">
+<div>
+<span class="eyebrow">EVIDENCE / HUMAN LABELS</span>
+<h2>保留结果，补上真实标签。</h2>
+<p>报告与证据保存在本机 SQLite；标注修改留有历史。标签描述实际可见情况，不是录用意见。</p>
+</div>
+<button id="refresh-history" class="secondary">刷新记录</button>
+</div>
+<div class="toolbar">
+<a href="/api/export/csv" download>导出结果 CSV</a>
+<a href="/api/export/manifest" download>导出评测清单 JSONL</a>
+<span id="history-count">
+</span>
+<button id="history-prev" class="secondary">上一页</button>
+<button id="history-next" class="secondary">下一页</button>
+</div>
+<div id="history-list" class="card scroll">
+</div>
+</section>
+<section id="evaluation" class="tab" hidden>
+<div class="intro">
+<div>
+<span class="eyebrow">METRICS / EXPLICIT DENOMINATORS</span>
+<h2>不仅看对了多少，也看判断了多少。</h2>
+<p>仅对已保存且有人工标签的记录计算。模拟样本自动排除，没有样本时不会生成准确率。</p>
+</div>
+</div>
+<div class="card">
+<div class="filters">
+<label>数据集<input id="filter-dataset" placeholder="留空为全部">
+</label>
+<label>规则版本<input id="filter-rules" placeholder="如 rules-1.0.0">
+</label>
+<label>引擎版本<input id="filter-engine" placeholder="如 mediapipe-bundled-1">
+</label>
+<button id="refresh-evaluation">计算评测</button>
+</div>
+<div id="evaluation-results" class="scroll">
+</div>
+</div>
+</section>
+<section id="help" class="tab" hidden>
+<div class="intro">
+<div>
+<span class="eyebrow">START HERE</span>
+<h2>从首次运行，到可重复评测。</h2>
+</div>
+</div>
+<div class="help-grid">
+<article class="card">
+<h3>01 本机运行</h3>
+<p>Python 3.10+，启动 <code>python3 server.py</code> 后用 Chrome / Edge 打开 localhost。模型与 WASM 都在仓库内，基础检测不依赖外网。</p>
+<p>加载失败可改为强制 CPU 后重新加载。浏览器显示实际使用的推理后端。</p>
+</article>
+<article class="card">
+<h3>02 验证闭环</h3>
+<p>采集或导入样本 → 查看疑点和证据 → 保存报告 → 人工标注 → 查看效果评测。相同样本重复测试应按模型、规则版本分别统计。</p>
+</article>
+<article class="card">
+<h3>03 可选视觉模型</h3>
+<p>在 <code>config/development.local.json</code> 配置地址、模型名和密钥，重启后可对当前报告发送证据。每次发送需要勾选授权。</p>
+<p>纹身、疤痕、发色仅支持模型观察；缺少服务时明确显示未评估。</p>
+</article>
+<article class="card">
+<h3>04 数据和限制</h3>
+<p>仅点击保存才落盘，原视频不保存。数据目录按开发、测试、生产区分。生产配置仍是单机工作台，不提供公网多用户服务。</p>
+<p>项目完整文档见仓库 <code>README.md</code> 和 <code>docs/</code>。没有内置真实缺失样本，也没有已验证的准确率。</p>
+</article>
+</div>
+</section>
+<section id="report-panel" class="card" hidden>
+<div class="intro compact">
+<div>
+<span class="eyebrow">CURRENT REPORT</span>
+<h2 id="report-title">检测报告</h2>
+</div>
+<div class="button-row">
+<button id="download-report" class="secondary">导出 JSON</button>
+<button id="print-report" class="secondary">打印 / PDF</button>
+</div>
+</div>
+<div id="report-content">
+</div>
+<div class="report-tools">
+<div>
+<label class="check">
+<input id="save-consent" type="checkbox">授权将本报告及证据保存到本机</label>
+<button id="save-report">保存报告</button>
+<p id="save-state" class="small">
+</p>
+</div>
+<div>
+<label class="check">
+<input id="review-consent" type="checkbox">授权将最多 3 张证据发送给已配置模型服务</label>
+<button id="review-report" class="secondary" disabled>视觉模型复核（六项观察）</button>
+<p class="small">原始本地结果保留；模型分歧转人工，外观项不作为岗位判定。</p>
+</div>
+</div>
+<form id="annotation-form" hidden>
+<h3>人工标注</h3>
+<div id="annotation-labels" class="filters">
+</div>
+<div class="filters">
+<label>标注人<input id="reviewer" maxlength="100" required>
+</label>
+<label>数据集<input id="dataset" placeholder="如 indoor-v1" maxlength="100">
+</label>
+<label>匿名受试者编号<input id="subject-id" placeholder="用于划分训练 / 验证集" maxlength="100">
+</label>
+</div>
+<label>标注依据 / 备注<textarea id="annotation-note" maxlength="2000">
+</textarea>
+</label>
+<button type="submit">保存人工标注</button>
+</form>
+</section>
+</main>
+<footer>v0.1.0 · Local first · 结果需人工确认 · 不自动作出录用或淘汰决定</footer>
+<video id="source-video" playsinline muted hidden>
+</video>
+<script type="module" src="/src/app.js">
+</script>
+</body>
+</html>

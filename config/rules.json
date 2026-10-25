@@ -1,0 +1,27 @@
+{
+  "version": "rules-1.0.0",
+  "minVisibility": 0.6,
+  "minHandScore": 0.5,
+  "limbSymmetry": [
+    0.75,
+    1.33
+  ],
+  "fingerRef": [
+    0.95,
+    0.88,
+    1,
+    0.93,
+    0.72
+  ],
+  "fingerShortFactor": 0.6,
+  "middleToPalmMin": 0.45,
+  "nailDeltaE": 22,
+  "minBrightness": 45,
+  "maxBrightness": 225,
+  "minHandPixels": 65,
+  "holdMs": 1000,
+  "stepTimeoutMs": 25000,
+  "inferenceIntervalMs": 100,
+  "maxVideoFrames": 60,
+  "videoSampleSeconds": 1
+}
