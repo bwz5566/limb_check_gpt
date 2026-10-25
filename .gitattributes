@@ -1,0 +1,8 @@
+* text=auto eol=lf
+*.bat text eol=crlf
+# Vendored assets are byte-pinned; never change line endings on checkout.
+web/vendor/** -text
+*.wasm binary
+*.task binary
+*.png binary
+*.mp4 binary
